@@ -1,4 +1,4 @@
-// const { promises: fs } = require('fs');s
+// const { promises: fs } = require('fs');
 
 var pdf_table_extractor = require("pdf-table-extractor");
 
@@ -24,14 +24,15 @@ const read_pdf = (file) => new Promise((resolve, reject) => {
       resolve(total)
       // console.log({ name, lista_em_centavos, total })
    }
-   pdf_table_extractor(`./consultas/${file}`, success(file), e => console.log(e))
+   pdf_table_extractor(`${file}`, success(file), e => console.log(e))
 });
 
 
-(async () => {
-   console.log('começou')
-   const a = await read_pdf('b43708d9-532a-4683-878d-738a83f63c25.pdf')
-   console.log(a)
-   console.log('acabou')
-})()
+// (async () => {
+//    console.log('começou')
+//    const a = await read_pdf('b43708d9-532a-4683-878d-738a83f63c25.pdf')
+//    console.log(a)
+//    console.log('acabou')
+// })()
 
+module.exports= {read_pdf}
