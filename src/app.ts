@@ -13,7 +13,8 @@ import morgan from 'morgan';
 // const cors = require('cors');
 
 // import './pdf_reader.js'
-import {bot} from'./telegram'
+// import {bot} from'./telegram'
+const {bot} = require('./telegram.js')
 
 
 
