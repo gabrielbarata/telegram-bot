@@ -5,79 +5,55 @@ const Telegraf = require('telegraf')
 const Composer = require('telegraf/composer')
 const session = require('telegraf/session')
 const Stage = require('telegraf/stage')
+const { enter, leave } = Stage
 const Extra = require('telegraf/extra')
 const Markup = require('telegraf/markup')
 const WizardScene = require('telegraf/scenes/wizard')
+const Scene = require('telegraf/scenes/base')
 
 const axios = require('axios');
 const { promises: fs } = require("fs");
-const { read_pdf } = require('./pdf_reader.js')
-
-// let descricao = ''
-// let preco = 0
-// let data = null
-
-// const confirmacao = Extra.markup(Markup.inlineKeyboard([
-//     Markup.callbackButton('Sim', 's'),
-//     Markup.callbackButton('Não', 'n'),
-// ]))
-
-// const precoHandler = new Composer()
-// precoHandler.hears(/(\d+)/, ctx => {
-//     preco = ctx.match[1]
-//     ctx.reply('É para pagar que dia?')
-//     ctx.wizard.next()
-// })
-
-// precoHandler.use(ctx => ctx.reply('Apenas números são aceitos...'))
-
-// const dataHandler = new Composer()
-// dataHandler.hears(/(\d{2}\/\d{2}\/\d{4})/, ctx => {
-//     data = ctx.match[1]
-//     ctx.reply(`Aqui está um resumo da sua compra:
-//         Descrição: ${descricao}
-//         Preço: ${preco}
-//         Data: ${data}
-//     Confirma?`, confirmacao)
-//     ctx.wizard.next()
-// })
-
-// dataHandler.use(ctx => ctx.reply('Entre com uma data no formato dd/MM/YYYY'))
+const { read_pdf, verify_pdf } = require('./pdf_reader.js')
 
 const documentScene = new Scene('document')
 
-const documenthandler = new Composer()
-documenthandler.on('document', async (ctx) => {
+documentScene.on('document', async (ctx) => {
     console.log('documento')
     const { file_id } = ctx.message.document
     try {
         const { data: { result: { file_path } } } = await axios.get(`https://api.telegram.org/bot${process.env.BOT_TOKEN}/getFile?file_id=${file_id}`)
         await downloadPDF(`https://api.telegram.org/file/bot${process.env.BOT_TOKEN}/${file_path}`, "temp.pdf");
+
+        if (!(await verify_pdf("temp.pdf"))){
+            return await ctx.reply(`arquivo invalido, tente novamente`)
+        }
         const total = await read_pdf("temp.pdf")
         console.log(total)
         ctx.reply(`seu total é de: R$${total}`)
         ctx.session.total = total
-        ctx.wizard.next()
+        ctx.scene.leave()
     } catch (erro) {
         ctx.reply(`houve um erro, tente novamente por favor`)
         console.log({ erro })
     }
 });
-documenthandler.command('cancelar', ctx => {
-    ctx.reply('cancelado')
-    // ctx.scene.leave()
-    ctx.wizard.next()
+documentScene.command('cancelar', async ctx => {
+    await ctx.reply('cancelado')
+    await ctx.scene.leave()
 })
 
-documenthandler.on('text',ctx=>{
+documentScene.on('text', ctx => {
+    ctx.reply('lalalla envie seu documento ou digite /cancelar para cancelar')
+})
+
+
+documentScene.enter(ctx => {
     ctx.reply('envie seu documento ou digite /cancelar para cancelar')
 })
 
-// confirmacaoHandler.action('n', ctx => {
-//     ctx.reply('Compra excluída!')
-//     ctx.scene.leave()
-// })
-
+documentScene.leave(ctx => {
+    ctx.reply('tela inicial')
+})
 
 
 async function downloadPDF(pdfURL, outputFilename) {
@@ -91,37 +67,16 @@ async function downloadPDF(pdfURL, outputFilename) {
 
 }
 
-
-
-
-
-
-// confirmacaoHandler.use(ctx => ctx.reply('Apenas confirme', confirmacao))
-
-const wizardCompra = new WizardScene('compra',
-    ctx => {
-        ctx.reply('envie seu documento')
-        ctx.wizard.next()
-    },
-    documenthandler,
-    ctx => {
-        ctx.reply(`asasdafaf ${ctx.session.total}`)
-        ctx.wizard.next()
-    },
-    // ctx => {
-    //     descricao = ctx.update.message.text
-    //     ctx.reply('Quanto foi?')
-    //     ctx.wizard.next()
-    // },
-    // precoHandler,
-    // dataHandler,
-    // confirmacaoHandler
-)
-
 const bot = new Telegraf(process.env.BOT_TOKEN)
-const stage = new Stage([wizardCompra], { default: 'compra' })
+bot.telegram.sendMessage(process.env.CHAT_ID, 'Hello Telegram!');
+const stage = new Stage([documentScene])
 bot.use(session())
 bot.use(stage.middleware())
+
+bot.command('document', enter('document'))
+bot.command('meu_total', ctx => ctx.session.total ? ctx.reply(`seu total é de: R$${ctx.session.total}`) : enter('document')(ctx))
+
+bot.on('message', ctx => ctx.reply('Entre com /document ou /meu_total'))
 
 bot.startPolling()
 

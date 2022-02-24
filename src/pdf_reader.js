@@ -28,6 +28,27 @@ const read_pdf = (file) => new Promise((resolve, reject) => {
 });
 
 
+
+const fs = require('fs'),
+   PDFParser = require("pdf2json");
+
+const verify_pdf = (file) => new Promise((resolve, reject) => {
+   const pdfParser = new PDFParser();
+
+   pdfParser.on("pdfParser_dataError", errData => {
+      console.error(errData.parserError)
+      reject(errData.parserError)
+   });
+   pdfParser.on("pdfParser_dataReady", pdfData => {
+      resolve(pdfData.Meta?.Title == 'Relatório Intermediário')
+   });
+
+   pdfParser.loadPDF(file);
+})
+
+
+// verify_pdf("file.pdf").then(console.log)
+// verify_pdf("somePDF.pdf").then(console.log)
 // (async () => {
 //    console.log('começou')
 //    const a = await read_pdf('b43708d9-532a-4683-878d-738a83f63c25.pdf')
@@ -35,4 +56,4 @@ const read_pdf = (file) => new Promise((resolve, reject) => {
 //    console.log('acabou')
 // })()
 
-module.exports= {read_pdf}
+module.exports = { verify_pdf, read_pdf }
