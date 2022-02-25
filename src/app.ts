@@ -10,7 +10,7 @@ import morgan from 'morgan';
 // const cookieParser = require('cookie-parser');
 // const bodyParser = require('body-parser');
 // const compression = require('compression');
-// const cors = require('cors');
+// const cors = require('cors');s
 
 // import './pdf_reader.js'
 // import {bot} from'./telegram'
@@ -40,6 +40,11 @@ app.post(`/secret-path`, (req, res) => {
 
 
 app.get('*', (req, res, next) => {
+  res.json({ a: 1 }).end()
+});
+
+
+app.get('/lala', (req, res, next) => {
   res.json({ a: 1 }).end()
 });
 

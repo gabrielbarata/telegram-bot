@@ -1,6 +1,9 @@
 // const { promises: fs } = require('fs');
 
 var pdf_table_extractor = require("pdf-table-extractor");
+const axios = require('axios');
+const { promises: fs } = require("fs");
+const PDFParser = require("pdf2json");
 
 const read_pdf = (file) => new Promise((resolve, reject) => {
    const success = (name) => (result) => {
@@ -29,8 +32,7 @@ const read_pdf = (file) => new Promise((resolve, reject) => {
 
 
 
-const fs = require('fs'),
-   PDFParser = require("pdf2json");
+
 
 const verify_pdf = (file) => new Promise((resolve, reject) => {
    const pdfParser = new PDFParser();
@@ -47,6 +49,17 @@ const verify_pdf = (file) => new Promise((resolve, reject) => {
 })
 
 
+
+async function download_pdf(pdfURL, outputFilename) {
+   const { data } = await axios.get(pdfURL, {
+      responseType: 'arraybuffer'
+   })
+   const buff = Buffer.from(data)
+   await fs.writeFile(outputFilename, buff);
+   console.log("done");
+}
+
+
 // verify_pdf("file.pdf").then(console.log)
 // verify_pdf("somePDF.pdf").then(console.log)
 // (async () => {
@@ -56,4 +69,4 @@ const verify_pdf = (file) => new Promise((resolve, reject) => {
 //    console.log('acabou')
 // })()
 
-module.exports = { verify_pdf, read_pdf }
+module.exports = { verify_pdf, read_pdf, download_pdf }

@@ -13,59 +13,77 @@ const Scene = require('telegraf/scenes/base')
 
 const axios = require('axios');
 const { promises: fs } = require("fs");
-const { read_pdf, verify_pdf } = require('./pdf_reader.js')
+const { read_pdf, verify_pdf, download_pdf } = require('./pdf_reader.js')
+const { total_a_pagar } = require('./total_a_pagar')
 
-const documentScene = new Scene('document')
+
+const reply_with_buttons = (ctx, title, buttons) => {
+    ctx.replyWithHTML(
+        title,
+        Extra.HTML().markup(m =>
+            m.inlineKeyboard(
+                buttons.map(i => m.callbackButton(i, i))
+                , { columns: 1 })
+        )
+    );
+}
+
+const tela_inicial = ctx => {
+    // ctx.reply('Entre com /document, /meu_total ou /meu_total_a_pagar')
+    reply_with_buttons(ctx, "<b>clique para começar</b>", ['documento', 'meu total', 'meu total a pagar'])
+}
+
+
+
+
+
+
+const documentScene = new Scene('documento')
 
 documentScene.on('document', async (ctx) => {
     console.log('documento')
     const { file_id } = ctx.message.document
     try {
-        const { data: { result: { file_path } } } = await axios.get(`https://api.telegram.org/bot${process.env.BOT_TOKEN}/getFile?file_id=${file_id}`)
-        await downloadPDF(`https://api.telegram.org/file/bot${process.env.BOT_TOKEN}/${file_path}`, "temp.pdf");
+        const { data: { result: { file_path, file_unique_id } } } = await axios.get(`https://api.telegram.org/bot${process.env.BOT_TOKEN}/getFile?file_id=${file_id}`)
+        const path = `./consultas/${file_unique_id}.pdf`
 
-        if (!(await verify_pdf("temp.pdf"))){
+        await download_pdf(`https://api.telegram.org/file/bot${process.env.BOT_TOKEN}/${file_path}`, path);
+
+        if (!(await verify_pdf(path))) {
             return await ctx.reply(`arquivo invalido, tente novamente`)
         }
-        const total = await read_pdf("temp.pdf")
+        const total = await read_pdf(path)
         console.log(total)
-        ctx.reply(`seu total é de: R$${total}`)
         ctx.session.total = total
+        ctx.session.total_a_pagar = total_a_pagar(total)
+
+        await ctx.reply(`seu total é de: R$ ${total}`)
+        await ctx.reply(ctx.session.total_a_pagar ? `seu total a pagar é de: R$ ${ctx.session.total_a_pagar}` : 'só fazemos até R$ 5000')
+
         ctx.scene.leave()
     } catch (erro) {
         ctx.reply(`houve um erro, tente novamente por favor`)
         console.log({ erro })
     }
 });
-documentScene.command('cancelar', async ctx => {
-    await ctx.reply('cancelado')
+documentScene.action('cancelar', async ctx => {
+    await ctx.reply('cancelado');
+    await ctx.answerCbQuery();
     await ctx.scene.leave()
 })
 
-documentScene.on('text', ctx => {
-    ctx.reply('lalalla envie seu documento ou digite /cancelar para cancelar')
-})
-
-
-documentScene.enter(ctx => {
-    ctx.reply('envie seu documento ou digite /cancelar para cancelar')
-})
-
-documentScene.leave(ctx => {
-    ctx.reply('tela inicial')
-})
-
-
-async function downloadPDF(pdfURL, outputFilename) {
-    const { data } = await axios.get(pdfURL, {
-        responseType: 'arraybuffer'
-    })
-    const buff = Buffer.from(data)
-    await fs.writeFile(outputFilename, buff);
-    console.log("done");
-
-
+const on_text = ctx => {
+    reply_with_buttons(ctx, "<b>envie seu documento</b>", ['cancelar'])
+    // ctx.reply('envie seu documento')
 }
+
+
+documentScene.on('text', on_text)
+documentScene.enter(on_text)
+
+documentScene.leave(tela_inicial)
+
+
 
 const bot = new Telegraf(process.env.BOT_TOKEN)
 bot.telegram.sendMessage(process.env.CHAT_ID, 'Hello Telegram!');
@@ -73,10 +91,20 @@ const stage = new Stage([documentScene])
 bot.use(session())
 bot.use(stage.middleware())
 
-bot.command('document', enter('document'))
-bot.command('meu_total', ctx => ctx.session.total ? ctx.reply(`seu total é de: R$${ctx.session.total}`) : enter('document')(ctx))
+bot.action('documento', async ctx => {
+    enter('documento')(ctx);
+    await ctx.answerCbQuery();
+})
+bot.action('meu total', async ctx => {
+    ctx.session.total ? ctx.reply(`seu total é de: R$ ${ctx.session.total}`) : enter('documento')(ctx)
+    await ctx.answerCbQuery();
+})
+bot.action('meu total a pagar', async ctx => {
+    ctx.session.total_a_pagar ? ctx.reply(`seu total a pagar é de: R$ ${ctx.session.total_a_pagar}`) : enter('documento')(ctx)
+    await ctx.answerCbQuery();
+})
 
-bot.on('message', ctx => ctx.reply('Entre com /document ou /meu_total'))
+bot.on('message', tela_inicial)
 
 bot.startPolling()
 
