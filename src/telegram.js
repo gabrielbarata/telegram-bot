@@ -16,7 +16,7 @@ const { promises: fs } = require("fs");
 const { read_pdf, verify_pdf, download_pdf } = require('./pdf_reader.js')
 const { total_a_pagar } = require('./total_a_pagar')
 
-const opt_button = ['documento', 'meu total', 'meu total a pagar', 'contatar um atendente']
+const opt_button = ['envie sua consulta', 'meu total', 'meu total a pagar', 'contatar um atendente']
 
 const delete_msg = async (ctx, many) => {
     for (let i = 0; i < many; i++) {
@@ -106,7 +106,7 @@ const stage = new Stage([documentScene])
 bot.use(session())
 bot.use(stage.middleware())
 
-bot.action('documento', async ctx => {
+bot.action('envie sua consulta', async ctx => {
     enter('documento')(ctx);
     await ctx.answerCbQuery();
 })
@@ -156,6 +156,7 @@ bot.on("contact", async ctx => {
 bot.on('message', async ctx => {
     console.log(ctx.message)
     await ctx.deleteMessage()
+    await ctx.reply(`inicie com /start`)
 })
 
 
