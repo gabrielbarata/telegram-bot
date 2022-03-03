@@ -13,6 +13,8 @@ const Scene = require('telegraf/scenes/base')
 
 const axios = require('axios');
 const { promises: fs } = require("fs");
+const schedule = require('node-schedule')
+
 const { read_pdf, verify_pdf, download_pdf } = require('./pdf_reader.js')
 const { total_a_pagar } = require('./total_a_pagar')
 
@@ -106,6 +108,35 @@ const stage = new Stage([documentScene])
 bot.use(session())
 bot.use(stage.middleware())
 
+const notificacao = new schedule.scheduleJob('*/5 * * * * *', async () => {
+
+    await bot.telegram.sendMessage(process.env.GROUP_ID, 'questionMessage', {
+        reply_markup: {
+            inline_keyboard: [
+                [
+                    { text: 'show dogs', url: "https://covid19.who.int/" },
+                    { text: 'show cats', url: "https://covid19.who.int/" },
+                    { text: 'show cats', url: "https://covid19.who.int/" },
+                ],
+                [
+                    { text: 'show dogs', url: "https://covid19.who.int/" },
+                    { text: 'show cats', url: "https://covid19.who.int/" },
+                    { text: 'show dogs', url: "https://covid19.who.int/" },
+                    { text: 'show cats', url: "https://covid19.who.int/" },
+
+                ]
+            ]
+        },
+    })
+})
+
+bot.use((ctx, next) => {
+    console.log(ctx.message)
+    if (ctx.message?.chat?.type == 'private') {
+        return next()
+    }
+})
+
 bot.action('envie sua consulta', async ctx => {
     enter('documento')(ctx);
     await ctx.answerCbQuery();
@@ -159,6 +190,13 @@ bot.on('message', async ctx => {
     await ctx.reply(`inicie com /start`)
 })
 
+
+
+
+// const notificacao = new schedule.scheduleJob('*/5 * * * * *', async () => {
+//     telegram.sendMessage(env.userID, `Essa é uma mensagem de evento [${contador++}]`, botoes)
+//     await bot.telegram.sendMessage(process.env.ATTENDANT_ID, 'teste programd')
+// })
 
 
 bot.startPolling()
